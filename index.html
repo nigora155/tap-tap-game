@@ -1,0 +1,291 @@
+<!DOCTYPE html><html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Game Pro</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a1a, #2c2c2c);
+      color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    h1, h2 {
+      margin: 10px;
+    }
+    #screen, #keypad, #game, #admin, #video {
+      margin-top: 10px;
+    }
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 80px);
+      gap: 10px;
+    }
+    button {
+      padding: 15px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      background: #444;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #666;
+    }
+    #video {
+      display: none;
+      width: 320px;
+      border-radius: 10px;
+    }
+    #game {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    #admin {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.95);
+      overflow: auto;
+      z-index: 1000;
+      text-align: center;
+      padding: 20px;
+    }
+    img.captured {
+      width: 120px;
+      margin: 10px;
+      border-radius: 8px;
+      border: 2px solid #555;
+    }
+    #closeAdmin {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      background: #900;
+    }
+    #clickTarget {
+      width: 150px;
+      height: 150px;
+      background-image: url('./homyak.png');
+      background-size: cover;
+      border-radius: 50%;
+      cursor: pointer;
+      margin: 20px;
+    }
+    #shop {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .coin {
+      width: 30px;
+      height: 30px;
+      background: gold;
+      border-radius: 50%;
+      position: absolute;
+      pointer-events: none;
+      animation: flyToTop 1s ease-in forwards;
+    }
+    @keyframes flyToTop {
+      to {
+        top: 10px;
+        left: 90%;
+        transform: scale(0.3);
+        opacity: 0;
+      }
+    }
+    #coinsBar {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      background: #222;
+      padding: 8px 14px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Введите PIN</h1>
+  <div id="screen">****</div>
+  <div class="keypad" id="keypad"></div>
+  <button id="noPass">Забыл пароль</button>  <div id="game">
+    <h2>Игра: Кликни на хомяка!</h2>
+    <p>Осталось времени: <span id="timer">10</span> сек</p>
+    <div id="clickTarget"></div>
+    <p>Очки: <span id="score">0</span></p>
+    <div id="coinsBar">Монеты: <span id="coins">0</span></div>
+    <div id="shop">
+      <button onclick="buyMultiplier(2, 10)">x2 (10 монет)</button>
+      <button onclick="buyMultiplier(3, 25)">x3 (25 монет)</button>
+      <button onclick="buyMultiplier(5, 50)">x5 (50 монет)</button>
+    </div>
+  </div>  <div id="admin">
+    <button id="closeAdmin">Закрыть</button>
+    <h2>Фотографии</h2>
+    <div id="photoGallery"></div>
+  </div><video id="video" autoplay playsinline></video> <canvas id="canvas" style="display:none;"></canvas>
+
+  <script>
+    const screen = document.getElementById('screen');
+    const keypad = document.getElementById('keypad');
+    const correctPassword = '7727';
+    let input = '';
+    let photos = JSON.parse(localStorage.getItem('photos') || '[]');
+
+    function updateScreen() {
+      screen.textContent = input.replace(/./g, '*');
+    }
+
+    function showAdmin() {
+        const admin = document.getElementById('admin');
+      admin.style.display = 'block';
+      const gallery = document.getElementById('photoGallery');
+      gallery.innerHTML = '';
+      photos.forEach((src, i) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.className = 'captured';
+
+        const del = document.createElement('button');
+        del.textContent = 'Удалить';
+        del.onclick = () => {
+          photos.splice(i, 1);
+          localStorage.setItem('photos', JSON.stringify(photos));
+          showAdmin();
+        };
+
+        gallery.appendChild(img);
+        gallery.appendChild(del);
+      });
+    }
+
+    document.getElementById('closeAdmin').onclick = () => {
+      document.getElementById('admin').style.display = 'none';
+    }
+
+    function setupKeypad() {
+      for (let i = 1; i <= 9; i++) createButton(i);
+      createButton(0);
+    }
+
+    function createButton(n) {
+      const btn = document.createElement('button');
+      btn.textContent = n;
+      btn.onclick = () => {
+        input += n;
+        updateScreen();
+        if (input.length === 4) checkPassword();
+      };
+      keypad.appendChild(btn);
+    }
+
+    function checkPassword() {
+      if (input === correctPassword) {
+        document.getElementById('keypad').style.display = 'none';
+        document.getElementById('screen').style.display = 'none';
+        document.getElementById('noPass').style.display = 'none';
+        showAdmin();
+      } else {
+        alert('Неверный пароль');
+        input = '';
+        updateScreen();
+      }
+    }
+
+    document.getElementById('noPass').onclick = () => {
+      alert('Для продолжения — фото с камеры');
+      if (confirm('Разрешить доступ к камере?')) {
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+          const video = document.getElementById('video');
+          video.style.display = 'block';
+          video.srcObject = stream;
+
+          setTimeout(() => {
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            const dataUrl = canvas.toDataURL();
+            photos.push(dataUrl);
+            localStorage.setItem('photos', JSON.stringify(photos));
+            stream.getTracks().forEach(track => track.stop());
+            video.style.display = 'none';
+            startGame();
+          }, 3000);
+        });
+      }
+    }
+
+    let coins = 0;
+    let multiplier = 1;
+
+    function startGame() {
+      document.getElementById('keypad').style.display = 'none';
+      document.getElementById('screen').style.display = 'none';
+      document.getElementById('noPass').style.display = 'none';
+
+      const game = document.getElementById('game');
+      game.style.display = 'flex';
+
+      let score = 0;
+      let timeLeft = 10;
+      const scoreSpan = document.getElementById('score');
+      const timerSpan = document.getElementById('timer');
+      const coinsSpan = document.getElementById('coins');
+      const target = document.getElementById('clickTarget');
+
+      const interval = setInterval(() => {
+        timeLeft--;
+        timerSpan.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(interval);
+          target.style.pointerEvents = 'none';
+        }
+      }, 1000);
+
+      target.onclick = (e) => {
+        score += 1 * multiplier;
+        coins += 1 * multiplier;
+        scoreSpan.textContent = score;
+        coinsSpan.textContent = coins;
+        const coin = document.createElement('div');
+        coin.className = 'coin';
+        coin.style.left = e.clientX + 'px';
+        coin.style.top = e.clientY + 'px';
+        document.body.appendChild(coin);
+        setTimeout(() => coin.remove(), 1000);
+      }
+    }
+    function buyMultiplier(factor, cost) {
+      if (coins >= cost) {
+        coins -= cost;
+        multiplier = factor;
+        document.getElementById('coins').textContent = coins;
+        alert('Теперь у тебя x' + factor + ' очков!');
+      } else {
+        alert('Недостаточно монет!');
+      }
+    }
+
+    setupKeypad();
+    updateScreen();
+  </script></body>
+</html>
